@@ -53,7 +53,6 @@
       font-family: Arial, Helvetica, sans-serif;
       margin-bottom: 20px;
       text-align: left;
-      /* Removido margin-left e margin-top para melhor controle via padding */
     }
 
     .time {
@@ -117,7 +116,6 @@
 <body>
 
   <div class="left-image">
-    <!-- Substitua pela URL da sua imagem 1920x1080 -->
     <img src="https://assets.xboxservices.com/assets/6f/19/6f194593-3362-4be9-8bef-de3f181464ec.jpg?n=456891_GLP-Page-Hero-1084_1920x1080.jpg" alt="New World Left">
   </div>
 
@@ -160,7 +158,7 @@
 
       return new Date(utc + (3600000 * offset));
     }
-// test
+
     const timezoneSelect = document.getElementById('timezone');
     const timeDisplay = document.querySelector('.time');
     const countdownDisplay = document.querySelector('.countdown');
@@ -182,17 +180,22 @@
       const hours = now.getHours();
       let period;
       let nextChange;
+
+      // Lógica corrigida
       if (minutes >= 22 && minutes < 52) {
-        period = 'day';
-        nextChange = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, 52, 0);
-      } else {
+        // Entre 22 e 51 -> Noite
         period = 'night';
-        if (minutes >= 52) {
-          nextChange = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours+1, 22, 0);
-        } else {
-          nextChange = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, 22, 0);
-        }
+        nextChange = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, 52, 0);
+      } else if (minutes >= 52) {
+        // Entre 52 e 59 -> Dia (próximo evento em hora +1:22)
+        period = 'day';
+        nextChange = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours + 1, 22, 0);
+      } else {
+        // Entre 00 e 21 -> Dia (próximo evento em XX:22)
+        period = 'day';
+        nextChange = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, 22, 0);
       }
+
       return { period, nextChange };
     }
 
@@ -262,7 +265,6 @@
     function updateSchedule(now, tz, currentPeriod, nextChange) {
       // Próximos 5 horários de mudança
       // Cada mudança acontece a cada 30 minutos alternando período
-      // Se agora é 'day', próximo é 'night', e vice-versa.
       let upcomingPeriods = [];
       let currentDate = new Date(nextChange);
       let nextPeriod = (currentPeriod === 'day') ? 'night' : 'day';
