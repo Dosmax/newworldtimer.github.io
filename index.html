@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>New World Ciclo Tempo</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      height: 100%;
+    }
+
+    body {
+      display: flex; /* Body em layout horizontal */
+      flex-direction: row;
+      overflow: hidden; 
+      height: 100vh;
+      transition: background-color 0.5s ease-in-out, color 0.5s ease-in-out;
+    }
+
+    /* Lateral esquerda com a imagem */
+    .left-image {
+      position: relative;
+      height: 100vh;
+      width: 69vw; 
+      overflow: hidden;
+    }
+
+    .left-image img {
+      width: 70%;
+      height: 100%;
+      object-fit: cover;
+      object-position: left;
+    }
+
+    /* Área de conteúdo (direita) */
+    .content {
+      position: relative;
+      width: 31vw; 
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;      /* Alinhar ao canto esquerdo */
+      justify-content: flex-start;  /* Alinhar ao topo */
+      padding: 40px;                /* Espaço interno para afastar do canto */
+    }
+
+    .title {
+      margin-top: 25%;
+      margin-left: -25%;
+      font-size: 8em;
+      font-family: Arial, Helvetica, sans-serif;
+      margin-bottom: 20px;
+      text-align: left;
+      /* Removido margin-left e margin-top para melhor controle via padding */
+    }
+
+    .time {
+      font-size: 10em;
+      margin-left: -25%;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+
+    .countdown {
+      font-size: 3em;
+      margin-left: -25%;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .selector {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      color: inherit;
+    }
+
+    /* Tabela de horários */
+    .schedule {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      border-collapse: collapse;
+      background: rgba(0,0,0,0.1);
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .schedule td, .schedule th {
+      padding: 5px 10px;
+    }
+
+    .schedule th {
+      font-weight: bold;
+      text-align: left;
+      background: rgba(0,0,0,0.2);
+      border-radius: 3px;
+    }
+
+    /* Ajustes para responsividade dos textos */
+    @media (max-width: 768px) {
+      .title {
+        font-size: 2em;
+      }
+      .time {
+        font-size: 1.5em;
+      }
+      .countdown {
+        font-size: 0.9em;
+      }
+    }
+    
+  </style>
+</head>
+<body>
+
+  <div class="left-image">
+    <!-- Substitua pela URL da sua imagem 1920x1080 -->
+    <img src="https://assets.xboxservices.com/assets/6f/19/6f194593-3362-4be9-8bef-de3f181464ec.jpg?n=456891_GLP-Page-Hero-1084_1920x1080.jpg" alt="New World Left">
+  </div>
+
+  <div class="content">
+    <div class="selector">
+      <label for="timezone">Fuso Horário:</label>
+      <select id="timezone">
+        <option value="BR" selected>BR (Português)</option>
+        <option value="PST">PST (Inglês)</option>
+      </select>
+    </div>
+
+    <div class="title">New World Ciclo Tempo</div>
+    <div class="time">--:--:--</div>
+    <div class="countdown">...</div>
+
+    <table class="schedule">
+      <thead>
+        <tr><th colspan="2" class="schedule-header">Próximos Horários</th></tr>
+        <tr><th>Horário</th><th>Período</th></tr>
+      </thead>
+      <tbody id="schedule-body">
+        <!-- Linhas geradas via JS -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    function getLocalTime(tz) {
+      const now = new Date();
+      // Converter para UTC
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+
+      let offset;
+      if (tz === 'PST') {
+        offset = -8; // PST sem considerar DST
+      } else {
+        offset = -3; // Brasília
+      }
+
+      return new Date(utc + (3600000 * offset));
+    }
+// test
+    const timezoneSelect = document.getElementById('timezone');
+    const timeDisplay = document.querySelector('.time');
+    const countdownDisplay = document.querySelector('.countdown');
+    const scheduleBody = document.getElementById('schedule-body');
+    const title = document.querySelector('.title');
+    const scheduleHeader = document.querySelector('.schedule-header');
+    const scheduleTh1 = document.querySelector('.schedule th:nth-child(1)');
+    const scheduleTh2 = document.querySelector('.schedule th:nth-child(2)');
+
+    function formatTime(date) {
+      const h = date.getHours().toString().padStart(2,'0');
+      const m = date.getMinutes().toString().padStart(2,'0');
+      const s = date.getSeconds().toString().padStart(2,'0');
+      return `${h}:${m}:${s}`;
+    }
+
+    function getNextPeriod(now, tz) {
+      const minutes = now.getMinutes();
+      const hours = now.getHours();
+      let period;
+      let nextChange;
+      if (minutes >= 22 && minutes < 52) {
+        period = 'day';
+        nextChange = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, 52, 0);
+      } else {
+        period = 'night';
+        if (minutes >= 52) {
+          nextChange = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours+1, 22, 0);
+        } else {
+          nextChange = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, 22, 0);
+        }
+      }
+      return { period, nextChange };
+    }
+
+    function checkPeriod() {
+      const tz = timezoneSelect.value;
+      const now = getLocalTime(tz);
+
+      const { period, nextChange } = getNextPeriod(now, tz);
+
+      // Atualizar o título conforme o idioma
+      if (tz === 'PST') {
+        title.textContent = "New World Timer Cycle";
+        scheduleHeader.textContent = "Next Times";
+        scheduleTh1.textContent = "Time";
+        scheduleTh2.textContent = "Period";
+      } else {
+        title.textContent = "New World Ciclo Tempo";
+        scheduleHeader.textContent = "Próximos Horários";
+        scheduleTh1.textContent = "Horário";
+        scheduleTh2.textContent = "Período";
+      }
+
+      // Ajusta visuais conforme o período
+      if (period === 'day') {
+        document.body.style.backgroundColor = "#FFFFFF";
+        document.body.style.color = "#000000";
+      } else {
+        document.body.style.backgroundColor = "#000000";
+        document.body.style.color = "#FFFFFF";
+      }
+
+      // Formata horário atual
+      timeDisplay.textContent = formatTime(now);
+
+      // Calcula quanto falta para a próxima mudança
+      const diff = nextChange - now; 
+      let totalMinutes = Math.floor(diff / 60000); 
+      let totalSeconds = Math.floor((diff % 60000) / 1000);
+      if (totalSeconds >= 30) {
+        totalMinutes += 1; 
+      }
+
+      let nextPeriod = (period === 'day') ? 'night' : 'day';
+
+      // Traduções e mensagens com ícones
+      let msg;
+      if (tz === 'PST') {
+        if (period === 'day') {
+          msg = `It's day now ☀️, ${totalMinutes} minutes until night 🌙`;
+        } else {
+          msg = `It's night now 🌙, ${totalMinutes} minutes until day ☀️`;
+        }
+      } else {
+        if (period === 'day') {
+          msg = `Está dia agora ☀️, faltam ${totalMinutes} minutos para a noite 🌙`;
+        } else {
+          msg = `Está noite agora 🌙, faltam ${totalMinutes} minutos para o dia ☀️`;
+        }
+      }
+
+      countdownDisplay.textContent = msg;
+
+      // Atualizar a tabela dos próximos 5 horários
+      updateSchedule(now, tz, period, nextChange);
+    }
+
+    function updateSchedule(now, tz, currentPeriod, nextChange) {
+      // Próximos 5 horários de mudança
+      // Cada mudança acontece a cada 30 minutos alternando período
+      // Se agora é 'day', próximo é 'night', e vice-versa.
+      let upcomingPeriods = [];
+      let currentDate = new Date(nextChange);
+      let nextPeriod = (currentPeriod === 'day') ? 'night' : 'day';
+
+      for (let i = 0; i < 5; i++) {
+        const localTime = getLocalTimeAt(currentDate, tz);
+        upcomingPeriods.push({time: localTime, period: nextPeriod});
+        // próxima mudança em 30 minutos
+        currentDate = new Date(currentDate.getTime() + 30*60000);
+        nextPeriod = (nextPeriod === 'day') ? 'night' : 'day';
+      }
+
+      // Renderizar tabela
+      scheduleBody.innerHTML = '';
+      for (let item of upcomingPeriods) {
+        const tr = document.createElement('tr');
+        const tdTime = document.createElement('td');
+        const tdPeriod = document.createElement('td');
+
+        tdTime.textContent = formatTime(item.time);
+
+        if (tz === 'PST') {
+          tdPeriod.textContent = (item.period === 'day') ? 'Day ☀️' : 'Night 🌙';
+        } else {
+          tdPeriod.textContent = (item.period === 'day') ? 'Dia ☀️' : 'Noite 🌙';
+        }
+
+        tr.appendChild(tdTime);
+        tr.appendChild(tdPeriod);
+        scheduleBody.appendChild(tr);
+      }
+    }
+
+    function getLocalTimeAt(date, tz) {
+      // Similar ao getLocalTime, mas partindo de um date específico
+      const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+      let offset;
+      if (tz === 'PST') {
+        offset = -8; 
+      } else {
+        offset = -3; 
+      }
+      return new Date(utc + (3600000 * offset));
+    }
+
+    // Atualiza a cada segundo
+    setInterval(checkPeriod, 1000);
+
+    // Ao trocar o fuso, atualizar imediatamente
+    timezoneSelect.addEventListener('change', checkPeriod);
+
+    // Inicial
+    checkPeriod();
+  </script>
+
+</body>
+</html>
